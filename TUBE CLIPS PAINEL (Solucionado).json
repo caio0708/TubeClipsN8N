@@ -1,0 +1,458 @@
+{
+  "name": "TUBE CLIPS PAINEL (Solucionado)",
+  "nodes": [
+    {
+      "parameters": {
+        "filePath": "=/data/{{ $('Set Video ID1').item.json.outputFileBase }}.mp4"
+      },
+      "name": "Read Binary File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        1280
+      ],
+      "id": "08180eb9-445e-494d-a13f-110193ed323e"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Disposition",
+                "value": "=attachment; filename=\"{{ $binary.data.fileName }}\""
+              }
+            ]
+          }
+        }
+      },
+      "name": "Respond to Webhook (Baixar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        1280
+      ],
+      "id": "f55722cd-64d7-4324-8e89-48e5155960a1"
+    },
+    {
+      "parameters": {
+        "command": "=(mkdir \"C:\\\\Users\\\\caiot\\\\Downloads\\\\clips\" 2>nul) & ffmpeg -hide_banner -loglevel error -y -i \"{{ $json.inputFile }}\" -ss {{ $json.startTime }} -t {{ $json.duration }} -c:v libx264 -preset veryfast -c:a aac -movflags +faststart \"C:\\\\Users\\\\caiot\\\\Downloads\\\\clips\\\\clip_{{ $json.clipIndex }}.mp4\""
+      },
+      "name": "1. Clip Video1",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        1504
+      ],
+      "id": "8bd68faf-777f-4ad3-a7b9-ade66ad299d5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega o item que entra no nó\nconst inputItem = $input.item;\n\n// Pega o array de intervalos de dentro do item\nconst intervals = inputItem.json.intervals;\n\n// Se não houver intervalos, não retorna nada\nif (!intervals || intervals.length === 0) {\n  return [];\n}\n\n// Função para converter \"HH:MM:SS\" em segundos\nconst toS = t => t.split(':').reverse().reduce((a,v,i) => a + parseInt(v||0) * [1,60,3600][i], 0);\n\n// Array para guardar os novos itens (um para cada clipe)\nconst outputItems = [];\n\n// Loop por cada intervalo no array\nfor (let i = 0; i < intervals.length; i++) {\n  const interval = intervals[i];\n  const s = interval.start;\n  const e = interval.end;\n\n  // Calcula a duração em segundos\n  const ds = toS(e) - toS(s);\n  if (ds <= 0) {\n    throw new Error(`Intervalo inválido: ${s} ~ ${e}`);\n  }\n\n  // Cria um novo item de saída para este clipe\n  const newItem = {\n    json: {\n      ...inputItem.json, // Copia todos os dados antigos (importante para manter o 'inputFile')\n      startTime: s,      // Adiciona o tempo de início\n      duration: ds,      // Adiciona a duração calculada\n      clipIndex: i       // Adiciona o índice do clipe (0, 1, 2...)\n    },\n    binary: inputItem.binary // Mantém os dados binários (se houver)\n  };\n\n  // Adiciona o novo item à lista de saída\n  outputItems.push(newItem);\n}\n\n// Retorna a lista de itens. O n8n irá processar cada\n// item individualmente nos próximos nós.\nreturn outputItems;"
+      },
+      "name": "Calculate Duration1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        1504
+      ],
+      "id": "df2a94fd-11c6-41e6-b0ed-ac1fff3a1c86"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "baseFilename",
+              "value": "={{ $binary.file.fileName }}",
+              "type": "string",
+              "id": "5874e362-6b69-47c2-b2f0-cdd800b2f9c6"
+            },
+            {
+              "name": "inputFile",
+              "value": "={{ 'C:\\\\Users\\\\caiot\\\\Downloads\\\\' + $binary.file.fileName }}",
+              "type": "string",
+              "id": "a4a40ae1-7e2f-432d-813f-f00b0f947df4"
+            },
+            {
+              "name": "inputSubtitle",
+              "value": "={{ 'C:\\\\Users\\\\caiot\\\\Downloads\\\\' + $binary.file.fileName.replace(/\\.mp4$/, '.pt-BR.srt') }}\n",
+              "type": "string",
+              "id": "164478c1-00f2-49a5-945a-0cc0e83b7a5e"
+            },
+            {
+              "name": "intervals",
+              "value": "={{ JSON.parse($json.body.intervals) }}",
+              "type": "json",
+              "id": "7353f63c-a391-4dd0-9ae7-1c7c3f35305a"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Clip Info1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1472,
+        1504
+      ],
+      "id": "cb9a326a-0de8-4961-a15b-3858473094b9"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "clip-video",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook: Cortar1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1040,
+        1504
+      ],
+      "id": "1744580a-f428-4fa5-948d-2707ada7ad43",
+      "webhookId": "520e6432-1005-4839-8341-2c632d4a1205"
+    },
+    {
+      "parameters": {
+        "command": "=yt-dlp -o \"/data/{{ $('Set Video ID1').item.json.outputFileBase }}.mp4\" --write-auto-sub --sub-lang pt-BR -f \"b[ext=mp4]\" {{ $json.url }}"
+      },
+      "name": "Baixar aud/vid/srt1",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        1280
+      ],
+      "id": "6e502613-2daf-420d-921a-771949492663"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "url",
+              "value": "={{ $json.body.url || $json.query.url }}",
+              "type": "string",
+              "id": "f071064b-7045-45d7-b085-ffc9b6dcd51c"
+            },
+            {
+              "name": "headers",
+              "value": "={{ $json.headers }}",
+              "type": "json",
+              "id": "5861d1f0-bbc3-45a9-934e-974fafb54df0"
+            },
+            {
+              "name": "videoId",
+              "value": "={{ ($json.body.url || $json.query.url).match(/v=([^&]+)/)?.[1] || ($json.body.url || $json.query.url).split('/').pop().split('?')[0] }}",
+              "type": "string",
+              "id": "2512f898-3b56-4cb5-b3dc-3e32c8f45139"
+            },
+            {
+              "name": "outputDir",
+              "value": "C:\\Users\\caiot\\Downloads\\",
+              "type": "string",
+              "id": "0cc919b0-93c6-462e-bcdf-9061c7fdee86"
+            },
+            {
+              "name": "outputFileBase",
+              "value": "={{ ($json.videoId || Date.now().toString()).replace(/[<>:\"/\\\\|?*\\x00-\\x1F]/g,'_').slice(0,120) }}",
+              "type": "string",
+              "id": "3b486ff0-e2e9-4024-b2dd-47cbf959102d"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Video ID1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        1280
+      ],
+      "id": "a0a1e0d0-10fc-4a12-99f4-c4661e0c37b6"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Respond to Webhook (Cortar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3232,
+        1504
+      ],
+      "id": "0d3a97b4-5326-4207-8e13-b15354593a37"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"/data/clips/vertical_{{ $json.clipIndex }}.mp4\" -vf \"ass=filename='/data/clips/clip_{{ $json.clipIndex }}_dinamico.ass'\" -c:a copy \"/data/clips/final_{{ $json.clipIndex }}.mp4\""
+      },
+      "name": "6. Add Stylized Subtitles",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2976,
+        1664
+      ],
+      "id": "cc0541ac-12a8-428c-b0ad-cfab7bac9939"
+    },
+    {
+      "parameters": {
+        "command": "=\n# IMPORTANTE: Seu script 'gerarASS.js' DEVE estar na pasta /data/scripts/ do n8n\n# Ele também deve ser atualizado para usar os caminhos /data/clips/ internamente\nnode /data/scripts/gerarASS.js {{ $json.clipIndex }}"
+      },
+      "name": "5. ASS Dinamico",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2752,
+        1664
+      ],
+      "id": "42ad1144-5928-4be5-8e21-f5d2d706745d"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -i \"/data/clips/clip_{{ $json.clipIndex }}.srt\" \"/data/clips/clip_{{ $json.clipIndex }}.ass\"\n"
+      },
+      "name": "4. SRT to ASS",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2544,
+        1664
+      ],
+      "id": "9497e315-83ef-4ced-8f3c-5085434e1eef"
+    },
+    {
+      "parameters": {
+        "command": "=(mkdir \"C:\\Users\\caiot\\Downloads\\clips\" 2>nul) & ffmpeg -hide_banner -loglevel error -y -i \"C:\\Users\\caiot\\Downloads\\clips\\clip_{{ $('Calculate Duration1').item.json.clipIndex }}.mp4\" -vf \"scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black\" -c:v libx264 -preset veryfast -c:a copy -movflags +faststart \"C:\\Users\\caiot\\Downloads\\clips\\vertical_{{ $('Calculate Duration1').item.json.clipIndex }}.mp4\""
+      },
+      "name": "3. To Vertical",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2336,
+        1504
+      ],
+      "id": "c9d39c9f-51d2-44e4-a1bb-8f31a5fc8fe1"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -ss {{ $json.startTime }} -i \"{{ $('Set Clip Info1').item.json.inputSubtitle }}\" -t {{ $json.duration }} -c copy \"/data/clips/clip_{{ $json.clipIndex }}.srt\""
+      },
+      "name": "2. Clip Subtitles (SRT)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2112,
+        1648
+      ],
+      "id": "542039bc-d921-4623-8f27-9c2b75645dfe"
+    },
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "download-video",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook: Baixar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        1280
+      ],
+      "id": "2445a471-24cb-49b6-a977-0b2780a527a1",
+      "webhookId": "a9e6d0a7-a541-4ce8-b11a-1d1981e9f168"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ 'C:\\\\Users\\\\caiot\\\\Downloads\\\\' + $binary.file.fileName }}",
+        "dataPropertyName": "file",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        1504
+      ],
+      "id": "04170c97-46be-4ea2-b413-7aabd3c91149",
+      "name": "Write Binary Files from Disk"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Read Binary File": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Baixar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Duration1": {
+      "main": [
+        [
+          {
+            "node": "1. Clip Video1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Clip Info1": {
+      "main": [
+        [
+          {
+            "node": "Calculate Duration1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Cortar1": {
+      "main": [
+        [
+          {
+            "node": "Write Binary Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar aud/vid/srt1": {
+      "main": [
+        [
+          {
+            "node": "Read Binary File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Video ID1": {
+      "main": [
+        [
+          {
+            "node": "Baixar aud/vid/srt1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Clip Video1": {
+      "main": [
+        [
+          {
+            "node": "3. To Vertical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Add Stylized Subtitles": {
+      "main": [
+        []
+      ]
+    },
+    "5. ASS Dinamico": {
+      "main": [
+        [
+          {
+            "node": "6. Add Stylized Subtitles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. SRT to ASS": {
+      "main": [
+        [
+          {
+            "node": "5. ASS Dinamico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. To Vertical": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Cortar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Clip Subtitles (SRT)": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook: Baixar": {
+      "main": [
+        [
+          {
+            "node": "Set Video ID1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Video ID1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Binary Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Set Clip Info1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c8f64c12-04e4-4a9a-9c79-68922ae8a643",
+  "meta": {
+    "instanceId": "aae9a64c63236eb3f48c9b3eb1f78f5f3329143a049a4cd796e9f9c353155815"
+  },
+  "id": "3oZzGSRTQgPoKoHx",
+  "tags": []
+}

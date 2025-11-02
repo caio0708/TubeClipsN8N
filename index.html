@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tube Clips - Painel de Mídia</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        /* --- Reset e Configurações Globais --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #E0E0E0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* --- Cabeçalho e Título --- */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 3.5rem;
+            color: #E53935;
+            margin-bottom: 10px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        /* --- Container Principal --- */
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        /* --- Estilo dos Cards --- */
+        .card {
+            background-color: #1E1E1E;
+            border-radius: 12px;
+            padding: 25px 30px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #2a2a2a;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #FFFFFF;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2 .fas {
+            color: #E53935;
+        }
+
+        /* --- Estilo dos Formulários --- */
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: #B0B0B0;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background-color: #2C2C2C;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #E0E0E0;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #E53935;
+            box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.2);
+        }
+
+        /* --- Estilo dos Botões --- */
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button[type="submit"] {
+            background-color: #E53935;
+            color: white;
+            margin-top: 10px;
+        }
+        button[type="submit"]:hover {
+            background-color: #C62828;
+            transform: translateY(-2px);
+        }
+        button[type="button"] {
+            background-color: #333;
+            color: #E0E0E0;
+            margin-bottom: 20px;
+        }
+        button[type="button"]:hover {
+            background-color: #444;
+        }
+
+        /* --- Seção de Intervalos --- */
+        #intervals-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .interval-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .interval-group input[type="text"] {
+            margin-bottom: 0;
+            flex: 1;
+        }
+        .remove-interval-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+        .remove-interval-btn:hover {
+            color: #E53935;
+        }
+
+        /* --- MENSAGEM DE STATUS --- */
+        .status-message {
+            font-size: 0.9rem;
+            margin-top: 15px;
+            color: #B0B0B0;
+            min-height: 1.2em;
+        }
+        .status-message.success {
+            color: #4CAF50; /* Verde */
+        }
+        .status-message.error {
+            color: #F44336; /* Vermelho */
+        }
+        
+        /* --- NOVO: Estilo do Botão de Upload --- */
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        #file-input {
+            display: none; /* Esconde o input original */
+        }
+        
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            background-color: #2C2C2C;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #B0B0B0;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .file-upload-label:hover {
+            background-color: #333;
+            border-color: #555;
+        }
+        
+        .file-upload-label .fas {
+            margin-right: 10px;
+            color: #E53935;
+        }
+        
+        #file-name-display {
+            font-style: italic;
+            font-size: 0.9rem;
+            color: #B0B0B0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo"><i class="fab fa-youtube"></i></div>
+        <h1>Tube Clips</h1>
+    </header>
+
+    <main class="container">
+
+        <div class="card" id="download-card">
+            <h2><i class="fas fa-download"></i> Baixar Mídia</h2>
+            <form id="download-form">
+                <label for="youtube-url">URL do YouTube</label>
+                <input type="text" id="youtube-url" name="url" placeholder="Cole a URL do YouTube aqui" required>
+                <button type="submit">Baixar</button>
+            </form>
+            <div id="download-status" class="status-message"></div>
+        </div>
+
+        <div class="card" id="cut-card">
+            <h2><i class="fas fa-cut"></i> Cortar Mídia</h2>
+            <form id="cut-form">
+                
+                <label>Arquivo de Mídia</label>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="file-input" name="file" required accept="video/mp4,video/quicktime,video/x-matroska,video/webm">
+                    
+                    <label for="file-input" class="file-upload-label">
+                        <i class="fas fa-paperclip"></i>
+                        <span id="file-name-display">Escolher Documento...</span>
+                    </label>
+                </div>
+                
+                <label>Intervalos de Corte</label>
+                <div id="intervals-container">
+                    </div>
+                
+                <button type="button" id="add-interval-btn"><i class="fas fa-plus"></i> Adicionar Intervalo</button>
+                
+                <button type="submit">Cortar</button>
+            </form>
+            <div id="cut-status" class="status-message"></div>
+        </div>
+    </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const BASE_WEBHOOK_URL = 'http://localhost:5678/webhook-test';
+  const DOWNLOAD_URL = `${BASE_WEBHOOK_URL}/download-video`;
+  const CLIP_URL = `${BASE_WEBHOOK_URL}/clip-video`;
+
+  // --- Seletores do Card de Download ---
+  const downloadForm = document.getElementById('download-form');
+  const downloadStatus = document.getElementById('download-status');
+
+  // --- Seletores do Card de Corte ---
+  const cutForm = document.getElementById('cut-form');
+  const cutStatus = document.getElementById('cut-status');
+  const fileInput = document.getElementById('file-input'); // NOVO
+  const fileNameDisplay = document.getElementById('file-name-display'); // NOVO
+  const addIntervalBtn = document.getElementById('add-interval-btn');
+  const intervalsContainer = document.getElementById('intervals-container');
+
+  const hhmmss = /^(\d{1,2}:)?\d{1,2}:\d{2}$/;
+  
+  // --- NOVO: Atualiza o nome do arquivo no botão ---
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+        fileNameDisplay.textContent = fileInput.files[0].name;
+    } else {
+        fileNameDisplay.textContent = 'Escolher Documento...';
+    }
+  });
+
+  // --- Lógica de DOWNLOAD (sem alteração) ---
+  downloadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    downloadStatus.textContent = 'Baixando... Por favor, aguarde.';
+    downloadStatus.className = 'status-message';
+    downloadForm.querySelector('button[type="submit"]').disabled = true;
+
+    const url = document.getElementById('youtube-url').value.trim();
+    if (!/^https?:\/\/(www\.)?youtube\.com\/watch\?v=|^https?:\/\/youtu\.be\//i.test(url)) {
+      downloadStatus.textContent = 'URL inválida. Forneça um link do YouTube.';
+      downloadStatus.className = 'status-message error';
+      downloadForm.querySelector('button[type="submit"]').disabled = false;
+      return;
+    }
+
+    try {
+      const response = await fetch(DOWNLOAD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      if (!response.ok) throw new Error(`Erro do servidor: ${response.status}`);
+
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = 'video.mp4';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+        }
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+
+      downloadStatus.textContent = `Download iniciado: ${filename}`;
+      downloadStatus.className = 'status-message success';
+      
+      // NÃO vamos mais preencher o nome do arquivo no outro card
+      // fileNameInput.value = filename; 
+      // fileNameInput.readOnly = false;
+
+    } catch (err) {
+      console.error(err);
+      downloadStatus.textContent = 'Erro ao baixar. Verifique o backend (n8n).';
+      downloadStatus.className = 'status-message error';
+    } finally {
+        downloadForm.querySelector('button[type="submit"]').disabled = false;
+    }
+  });
+
+  // --- CORTE (SEÇÃO TOTALMENTE CORRIGIDA) ---
+  cutForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    cutStatus.textContent = 'Enviando para corte...';
+    cutStatus.className = 'status-message';
+
+    // 1. Pegar o arquivo do input
+    const file = fileInput.files[0];
+    if (!file) {
+      cutStatus.textContent = 'Por favor, escolha um arquivo de vídeo.';
+      cutStatus.className = 'status-message error';
+      return;
+    }
+
+    // 2. Validar os intervalos
+    const groups = intervalsContainer.querySelectorAll('.interval-group');
+    if (!groups.length) {
+      cutStatus.textContent = 'Adicione ao menos um intervalo.';
+      cutStatus.className = 'status-message error';
+      return;
+    }
+
+    const intervals = [];
+    for (const g of groups) {
+      const start = g.querySelector('.start-time').value.trim();
+      const end = g.querySelector('.end-time').value.trim();
+      if (!start || !end || !hhmmss.test(start) || !hhmmss.test(end)) {
+        cutStatus.textContent = 'Use formato HH:MM:SS (ex: 00:00:03).';
+        cutStatus.className = 'status-message error';
+        return;
+      }
+      const toSec = (t) => t.split(':').reverse()
+        .reduce((acc, v, i) => acc + parseInt(v,10) * [1,60,3600][i], 0);
+      if (toSec(end) <= toSec(start)) {
+        cutStatus.textContent = 'Fim deve ser maior que o início em cada intervalo.';
+        cutStatus.className = 'status-message error';
+        return;
+      }
+      intervals.push({ start, end });
+    }
+
+    // 3. Criar FormData para enviar arquivo + dados
+    const formData = new FormData();
+    formData.append('file', file); // O arquivo binário
+    formData.append('intervals', JSON.stringify(intervals)); // Os intervalos como string JSON
+
+    try {
+      const response = await fetch(CLIP_URL, {
+        method: 'POST',
+        // NÃO defina Content-Type, o navegador faz isso com 'multipart/form-data'
+        body: formData 
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const result = await response.json(); 
+      console.log('Resposta do N8N:', result);
+
+      cutStatus.textContent = 'Clipes enviados para processamento!';
+      cutStatus.className = 'status-message success';
+      
+      // Limpar formulário
+      intervalsContainer.innerHTML = '';
+      addIntervalBtn.click();
+      fileInput.value = null; // Limpa o seletor de arquivo
+      fileNameDisplay.textContent = 'Escolher Documento...';
+
+    } catch (err) {
+      console.error(err);
+      cutStatus.textContent = 'Erro ao enviar para corte. Verifique o backend (n8n).';
+      cutStatus.className = 'status-message error';
+    }
+  });
+
+  // --- Adicionar/Remover intervalos ---
+  addIntervalBtn.addEventListener('click', () => {
+    const row = document.createElement('div');
+    row.className = 'interval-group';
+    row.innerHTML = `
+      <input type="text" class="start-time" placeholder="Início (HH:MM:SS)" required>
+      <input type="text" class="end-time" placeholder="Fim (HH:MM:SS)" required>
+      <button type="button" class="remove-interval-btn"><i class="fas fa-trash"></i></button>
+    `;
+    row.querySelector('.remove-interval-btn').addEventListener('click', () => row.remove());
+    intervalsContainer.appendChild(row);
+  });
+
+  // 1º intervalo
+  addIntervalBtn.click();
+});
+</script>
+
+</body>
+</html>
