@@ -191,13 +191,13 @@
             color: #F44336; /* Vermelho */
         }
         
-        /* --- NOVO: Estilo do Botão de Upload --- */
+        /* --- Estilo do Botão de Upload --- */
         .file-upload-wrapper {
             position: relative;
             margin-bottom: 15px;
         }
         
-        #file-input {
+        #file-input, #subtitle-file-input { /* NOVO: Aplicado a ambos */
             display: none; /* Esconde o input original */
         }
         
@@ -226,11 +226,32 @@
             color: #E53935;
         }
         
-        #file-name-display {
+        #file-name-display, #subtitle-file-name-display { /* NOVO: Aplicado a ambos */
             font-style: italic;
             font-size: 0.9rem;
             color: #B0B0B0;
         }
+
+        /* --- NOVO: Estilo do Checkbox --- */
+        #subtitle-checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #subtitle-checkbox-wrapper label {
+            font-size: 1rem;
+            color: #E0E0E0;
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+        #subtitle-checkbox {
+            width: 1.3em;
+            height: 1.3em;
+            cursor: pointer;
+            accent-color: #E53935;
+        }
+
     </style>
 </head>
 <body>
@@ -256,7 +277,7 @@
             <h2><i class="fas fa-cut"></i> Cortar Mídia</h2>
             <form id="cut-form">
                 
-                <label>Arquivo de Mídia</label>
+                <label>Arquivo de Mídia (Vídeo)</label>
                 <div class="file-upload-wrapper">
                     <input type="file" id="file-input" name="file" required accept="video/mp4,video/quicktime,video/x-matroska,video/webm">
                     
@@ -265,6 +286,21 @@
                         <span id="file-name-display">Escolher Documento...</span>
                     </label>
                 </div>
+
+                <div id="subtitle-checkbox-wrapper">
+                    <input type="checkbox" id="subtitle-checkbox">
+                    <label for="subtitle-checkbox">Cortar legendas também</label>
+                </div>
+
+                <div class="file-upload-wrapper" id="subtitle-upload-wrapper" style="display: none;">
+                    <label>Arquivo de Legenda (.srt, .vtt)</label>
+                    <input type="file" id="subtitle-file-input" name="clips" accept=".srt,.vtt">
+                    <label for="subtitle-file-input" class="file-upload-label">
+                        <i class="fas fa-file-alt"></i>
+                        <span id="subtitle-file-name-display">Escolher Arquivo de Legenda...</span>
+                    </label>
+                </div>
+
                 
                 <label>Intervalos de Corte</label>
                 <div id="intervals-container">
@@ -280,182 +316,227 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const BASE_WEBHOOK_URL = 'http://localhost:5678/webhook-test';
-  const DOWNLOAD_URL = `${BASE_WEBHOOK_URL}/download-video`;
-  const CLIP_URL = `${BASE_WEBHOOK_URL}/clip-video`;
+    const BASE_WEBHOOK_URL = 'http://localhost:5678/webhook-test';
+    const DOWNLOAD_URL = `${BASE_WEBHOOK_URL}/download-video`;
+    const CLIP_URL = `${BASE_WEBHOOK_URL}/clip-video`;
+    const CLIP_LEGENDAS_URL = `${BASE_WEBHOOK_URL}/clip-legendas`; // NOVO
 
-  // --- Seletores do Card de Download ---
-  const downloadForm = document.getElementById('download-form');
-  const downloadStatus = document.getElementById('download-status');
+    // --- Seletores do Card de Download ---
+    const downloadForm = document.getElementById('download-form');
+    const downloadStatus = document.getElementById('download-status');
 
-  // --- Seletores do Card de Corte ---
-  const cutForm = document.getElementById('cut-form');
-  const cutStatus = document.getElementById('cut-status');
-  const fileInput = document.getElementById('file-input'); // NOVO
-  const fileNameDisplay = document.getElementById('file-name-display'); // NOVO
-  const addIntervalBtn = document.getElementById('add-interval-btn');
-  const intervalsContainer = document.getElementById('intervals-container');
+    // --- Seletores do Card de Corte ---
+    const cutForm = document.getElementById('cut-form');
+    const cutStatus = document.getElementById('cut-status');
+    const fileInput = document.getElementById('file-input');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const addIntervalBtn = document.getElementById('add-interval-btn');
+    const intervalsContainer = document.getElementById('intervals-container');
+    
+    // --- NOVOS Seletores de Legenda ---
+    const subtitleCheckbox = document.getElementById('subtitle-checkbox');
+    const subtitleUploadWrapper = document.getElementById('subtitle-upload-wrapper');
+    const subtitleFileInput = document.getElementById('subtitle-file-input');
+    const subtitleFileNameDisplay = document.getElementById('subtitle-file-name-display');
 
-  const hhmmss = /^(\d{1,2}:)?\d{1,2}:\d{2}$/;
-  
-  // --- NOVO: Atualiza o nome do arquivo no botão ---
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) {
-        fileNameDisplay.textContent = fileInput.files[0].name;
-    } else {
-        fileNameDisplay.textContent = 'Escolher Documento...';
-    }
-  });
-
-  // --- Lógica de DOWNLOAD (sem alteração) ---
-  downloadForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    downloadStatus.textContent = 'Baixando... Por favor, aguarde.';
-    downloadStatus.className = 'status-message';
-    downloadForm.querySelector('button[type="submit"]').disabled = true;
-
-    const url = document.getElementById('youtube-url').value.trim();
-    if (!/^https?:\/\/(www\.)?youtube\.com\/watch\?v=|^https?:\/\/youtu\.be\//i.test(url)) {
-      downloadStatus.textContent = 'URL inválida. Forneça um link do YouTube.';
-      downloadStatus.className = 'status-message error';
-      downloadForm.querySelector('button[type="submit"]').disabled = false;
-      return;
-    }
-
-    try {
-      const response = await fetch(DOWNLOAD_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-
-      if (!response.ok) throw new Error(`Erro do servidor: ${response.status}`);
-
-      const contentDisposition = response.headers.get('content-disposition');
-      let filename = 'video.mp4';
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1];
+    const hhmmss = /^(\d{1,2}:)?\d{1,2}:\d{2}$/;
+    
+    // --- Atualiza o nome do arquivo de VÍDEO no botão ---
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            fileNameDisplay.textContent = fileInput.files[0].name;
+        } else {
+            fileNameDisplay.textContent = 'Escolher Documento...';
         }
-      }
+    });
 
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
+    // --- NOVO: Atualiza o nome do arquivo de LEGENDA no botão ---
+    subtitleFileInput.addEventListener('change', () => {
+        if (subtitleFileInput.files.length > 0) {
+            subtitleFileNameDisplay.textContent = subtitleFileInput.files[0].name;
+        } else {
+            subtitleFileNameDisplay.textContent = 'Escolher Arquivo de Legenda...';
+        }
+    });
 
-      downloadStatus.textContent = `Download iniciado: ${filename}`;
-      downloadStatus.className = 'status-message success';
-      
-      // NÃO vamos mais preencher o nome do arquivo no outro card
-      // fileNameInput.value = filename; 
-      // fileNameInput.readOnly = false;
+    // --- NOVO: Mostra/Esconde o upload de legenda ---
+    subtitleCheckbox.addEventListener('change', () => {
+        subtitleUploadWrapper.style.display = subtitleCheckbox.checked ? 'block' : 'none';
+    });
 
-    } catch (err) {
-      console.error(err);
-      downloadStatus.textContent = 'Erro ao baixar. Verifique o backend (n8n).';
-      downloadStatus.className = 'status-message error';
-    } finally {
-        downloadForm.querySelector('button[type="submit"]').disabled = false;
-    }
-  });
 
-  // --- CORTE (SEÇÃO TOTALMENTE CORRIGIDA) ---
-  cutForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    cutStatus.textContent = 'Enviando para corte...';
-    cutStatus.className = 'status-message';
+    // --- Lógica de DOWNLOAD (sem alteração) ---
+    downloadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        downloadStatus.textContent = 'Baixando... Por favor, aguarde.';
+        downloadStatus.className = 'status-message';
+        downloadForm.querySelector('button[type="submit"]').disabled = true;
 
-    // 1. Pegar o arquivo do input
-    const file = fileInput.files[0];
-    if (!file) {
-      cutStatus.textContent = 'Por favor, escolha um arquivo de vídeo.';
-      cutStatus.className = 'status-message error';
-      return;
-    }
+        const url = document.getElementById('youtube-url').value.trim();
+        if (!/^https?:\/\/(www\.)?youtube\.com\/watch\?v=|^https?:\/\/youtu\.be\//i.test(url)) {
+            downloadStatus.textContent = 'URL inválida. Forneça um link do YouTube.';
+            downloadStatus.className = 'status-message error';
+            downloadForm.querySelector('button[type="submit"]').disabled = false;
+            return;
+        }
 
-    // 2. Validar os intervalos
-    const groups = intervalsContainer.querySelectorAll('.interval-group');
-    if (!groups.length) {
-      cutStatus.textContent = 'Adicione ao menos um intervalo.';
-      cutStatus.className = 'status-message error';
-      return;
-    }
+        try {
+            const response = await fetch(DOWNLOAD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
 
-    const intervals = [];
-    for (const g of groups) {
-      const start = g.querySelector('.start-time').value.trim();
-      const end = g.querySelector('.end-time').value.trim();
-      if (!start || !end || !hhmmss.test(start) || !hhmmss.test(end)) {
-        cutStatus.textContent = 'Use formato HH:MM:SS (ex: 00:00:03).';
-        cutStatus.className = 'status-message error';
-        return;
-      }
-      const toSec = (t) => t.split(':').reverse()
-        .reduce((acc, v, i) => acc + parseInt(v,10) * [1,60,3600][i], 0);
-      if (toSec(end) <= toSec(start)) {
-        cutStatus.textContent = 'Fim deve ser maior que o início em cada intervalo.';
-        cutStatus.className = 'status-message error';
-        return;
-      }
-      intervals.push({ start, end });
-    }
+            if (!response.ok) throw new Error(`Erro do servidor: ${response.status}`);
 
-    // 3. Criar FormData para enviar arquivo + dados
-    const formData = new FormData();
-    formData.append('file', file); // O arquivo binário
-    formData.append('intervals', JSON.stringify(intervals)); // Os intervalos como string JSON
+            const contentDisposition = response.headers.get('content-disposition');
+            let filename = 'video.mp4';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1];
+                }
+            }
 
-    try {
-      const response = await fetch(CLIP_URL, {
-        method: 'POST',
-        // NÃO defina Content-Type, o navegador faz isso com 'multipart/form-data'
-        body: formData 
-      });
+            const blob = await response.blob();
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = downloadUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const result = await response.json(); 
-      console.log('Resposta do N8N:', result);
+            downloadStatus.textContent = `Download iniciado: ${filename}`;
+            downloadStatus.className = 'status-message success';
 
-      cutStatus.textContent = 'Clipes enviados para processamento!';
-      cutStatus.className = 'status-message success';
-      
-      // Limpar formulário
-      intervalsContainer.innerHTML = '';
-      addIntervalBtn.click();
-      fileInput.value = null; // Limpa o seletor de arquivo
-      fileNameDisplay.textContent = 'Escolher Documento...';
+        } catch (err) {
+            console.error(err);
+            downloadStatus.textContent = 'Erro ao baixar. Verifique o backend (n8n).';
+            downloadStatus.className = 'status-message error';
+        } finally {
+            downloadForm.querySelector('button[type="submit"]').disabled = false;
+        }
+    });
 
-    } catch (err) {
-      console.error(err);
-      cutStatus.textContent = 'Erro ao enviar para corte. Verifique o backend (n8n).';
-      cutStatus.className = 'status-message error';
-    }
-  });
+    // --- CORTE (SEÇÃO MODIFICADA) ---
+    cutForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        cutStatus.textContent = 'Enviando para corte...';
+        cutStatus.className = 'status-message';
 
-  // --- Adicionar/Remover intervalos ---
-  addIntervalBtn.addEventListener('click', () => {
-    const row = document.createElement('div');
-    row.className = 'interval-group';
-    row.innerHTML = `
-      <input type="text" class="start-time" placeholder="Início (HH:MM:SS)" required>
-      <input type="text" class="end-time" placeholder="Fim (HH:MM:SS)" required>
-      <button type="button" class="remove-interval-btn"><i class="fas fa-trash"></i></button>
-    `;
-    row.querySelector('.remove-interval-btn').addEventListener('click', () => row.remove());
-    intervalsContainer.appendChild(row);
-  });
+        // 0. Determina qual webhook usar
+        const useSubtitles = subtitleCheckbox.checked;
+        const targetUrl = useSubtitles ? CLIP_LEGENDAS_URL : CLIP_URL;
 
-  // 1º intervalo
-  addIntervalBtn.click();
+        // 1. Pegar o arquivo de VÍDEO
+        const file = fileInput.files[0];
+        if (!file) {
+            cutStatus.textContent = 'Por favor, escolha um arquivo de vídeo.';
+            cutStatus.className = 'status-message error';
+            return;
+        }
+
+        // 1.5 (NOVO) Pegar o arquivo de LEGENDA (se necessário)
+        let subtitleFile = null;
+        if (useSubtitles) {
+            subtitleFile = subtitleFileInput.files[0];
+            if (!subtitleFile) {
+                cutStatus.textContent = 'Por favor, escolha um arquivo de legenda.';
+                cutStatus.className = 'status-message error';
+                return;
+            }
+        }
+
+        // 2. Validar os intervalos
+        const groups = intervalsContainer.querySelectorAll('.interval-group');
+        if (!groups.length) {
+            cutStatus.textContent = 'Adicione ao menos um intervalo.';
+            cutStatus.className = 'status-message error';
+            return;
+        }
+
+        const intervals = [];
+        for (const g of groups) {
+            const start = g.querySelector('.start-time').value.trim();
+            const end = g.querySelector('.end-time').value.trim();
+            if (!start || !end || !hhmmss.test(start) || !hhmmss.test(end)) {
+                cutStatus.textContent = 'Use formato HH:MM:SS (ex: 00:00:03).';
+                cutStatus.className = 'status-message error';
+                return;
+            }
+            const toSec = (t) => t.split(':').reverse()
+                .reduce((acc, v, i) => acc + parseInt(v,10) * [1,60,3600][i], 0);
+            if (toSec(end) <= toSec(start)) {
+                cutStatus.textContent = 'Fim deve ser maior que o início em cada intervalo.';
+                cutStatus.className = 'status-message error';
+                return;
+            }
+            intervals.push({ start, end });
+        }
+
+        // 3. Criar FormData para enviar arquivo(s) + dados
+        const formData = new FormData();
+        formData.append('file', file); // O arquivo de vídeo
+        formData.append('intervals', JSON.stringify(intervals)); // Os intervalos
+
+        // NOVO: Adiciona o arquivo de legenda se o checkbox estiver marcado
+        if (useSubtitles && subtitleFile) {
+            formData.append('clips', subtitleFile); // Usando a chave 'clips' conforme solicitado
+        }
+
+        try {
+            // Usa a URL de destino correta
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                body: formData 
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const result = await response.json(); 
+            console.log('Resposta do N8N:', result);
+
+            cutStatus.textContent = 'Clipes enviados para processamento!';
+            cutStatus.className = 'status-message success';
+            
+            // Limpar formulário (VÍDEO)
+            intervalsContainer.innerHTML = '';
+            addIntervalBtn.click();
+            fileInput.value = null; 
+            fileNameDisplay.textContent = 'Escolher Documento...';
+            
+            // NOVO: Limpar formulário (LEGENDA)
+            subtitleFileInput.value = null;
+            subtitleFileNameDisplay.textContent = 'Escolher Arquivo de Legenda...';
+            subtitleCheckbox.checked = false;
+            subtitleUploadWrapper.style.display = 'none';
+
+
+        } catch (err) {
+            console.error(err);
+            cutStatus.textContent = 'Erro ao enviar para corte. Verifique o backend (n8n).';
+            cutStatus.className = 'status-message error';
+        }
+    });
+
+    // --- Adicionar/Remover intervalos ---
+    addIntervalBtn.addEventListener('click', () => {
+        const row = document.createElement('div');
+        row.className = 'interval-group';
+        row.innerHTML = `
+            <input type="text" class="start-time" placeholder="Início (HH:MM:SS)" required>
+            <input type="text" class="end-time" placeholder="Fim (HH:MM:SS)" required>
+            <button type="button" class="remove-interval-btn"><i class="fas fa-trash"></i></button>
+        `;
+        row.querySelector('.remove-interval-btn').addEventListener('click', () => row.remove());
+        intervalsContainer.appendChild(row);
+    });
+
+    // 1º intervalo
+    addIntervalBtn.click();
 });
 </script>
 
